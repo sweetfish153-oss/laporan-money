@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan Money Input</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; padding: 20px; }
+        .card { border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .table-container { margin-top: 20px; background: white; border-radius: 10px; padding: 10px; }
+        .btn-income { background-color: #d1e7dd; color: #0f5132; }
+        .btn-outcome { background-color: #f8d7da; color: #842029; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card p-4">
+        <h4 class="mb-3 text-center">Input Transaksi</h4>
+        
+        <div class="mb-3">
+            <label class="form-label">Tanggal</label>
+            <input type="date" id="date" class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label d-block">Type</label>
+            <div class="btn-group w-100" role="group">
+                <input type="radio" class="btn-check" name="type" id="income" value="INCOME" autocomplete="off">
+                <label class="btn btn-outline-success" for="income">INCOME</label>
+
+                <input type="radio" class="btn-check" name="type" id="outcome" value="OUTCOME" autocomplete="off" checked>
+                <label class="btn btn-outline-danger" for="outcome">OUTCOME</label>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-6 mb-3">
+                <label class="form-label">Pocket</label>
+                <select id="pocket" class="form-select"><option>Loading...</option></select>
+            </div>
+            <div class="col-6 mb-3">
+                <label class="form-label">Category</label>
+                <select id="category" class="form-select"><option>Loading...</option></select>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <input type="text" id="desc" class="form-control" placeholder="Makan siang, dsb..">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Amount (Rp)</label>
+            <input type="number" id="amount" class="form-control" placeholder="0">
+        </div>
+
+        <button onclick="tambahAntrean()" class="btn btn-primary w-100 mb-2">Tambah ke Antrean</button>
+    </div>
+
+    <div class="table-container shadow-sm">
+        <h6>Antrean Data:</h6>
+        <table class="table table-sm" id="tabelAntrean">
+            <thead>
+                <tr>
+                    <th>Ket</th>
+                    <th>Amt</th>
+                    <th>#</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <button id="btnKirim" onclick="kirimKeSheet()" class="btn btn-success w-100 mt-2" disabled>Kirim Semua ke Sheet</button>
+    </div>
+</div>
+
+<script>
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyamcjfrG9kKFYwmM_8p2TMOORO_ATqJRZt6G7R_POrCQwWjKjMOJyays7J5b8zNYsdmQ/exec'; // <--- GANTI DENGAN URL APPS SCRIPT ANDA
+    let antreanData = [];
+
+    // Set tanggal hari ini secara otomatis
+    document.getElementById('date').valueAsDate = new Date();
+
+    // Ambil Data Dropdown dari Sheet VARIABLES
+    async function loadDropdowns() {
+        try {
+            const response = await fetch(SCRIPT_URL);
+            const data = await response.json();
+            
+            fillSelect('pocket', data.pockets);
+            fillSelect('category', data.categories);
+        } catch (e) {
+            console.error("Gagal load dropdown", e);
+        }
+    }
+
+    function fillSelect(id, items) {
+        const select = document.getElementById(id);
+        select.innerHTML = '';
+        items.forEach(item => {
+            if(item) {
+                let opt = document.createElement('option');
+                opt.value = item;
+                opt.innerHTML = item;
+                select.appendChild(opt);
+            }
+        });
+    }
+
+    function tambahAntrean() {
+        const data = {
+            date: document.getElementById('date').value,
+            type: document.querySelector('input[name="type"]:checked').value,
+            pocket: document.getElementById('pocket').value,
+            category: document.getElementById('category').value,
+            desc: document.getElementById('desc').value,
+            amount: document.getElementById('amount').value
+        };
+
+        if(!data.amount || !data.desc) return alert("Isi deskripsi & nominal!");
+
+        antreanData.push(data);
+        renderTabel();
+        
+        // Reset field tertentu
+        document.getElementById('desc').value = '';
+        document.getElementById('amount').value = '';
+    }
+
+    function renderTabel() {
+        const tbody = document.querySelector('#tabelAntrean tbody');
+        const btnKirim = document.getElementById('btnKirim');
+        tbody.innerHTML = '';
+        
+        antreanData.forEach((d, index) => {
+            const row = `<tr>
+                <td><small>${d.desc} (${d.category})</small></td>
+                <td>${Number(d.amount).toLocaleString()}</td>
+                <td><button class='btn btn-sm btn-link text-danger' onclick='hapusItem(${index})'>x</button></td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+
+        btnKirim.disabled = antreanData.length === 0;
+    }
+
+    function hapusItem(index) {
+        antreanData.splice(index, 1);
+        renderTabel();
+    }
+
+    async function kirimKeSheet() {
+        const btn = document.getElementById('btnKirim');
+        btn.disabled = true;
+        btn.innerHTML = "Mengirim...";
+
+        try {
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(antreanData)
+            });
+            alert("Berhasil masuk ke DATABASE!");
+            antreanData = [];
+            renderTabel();
+        } catch (e) {
+            alert("Gagal kirim data!");
+        } finally {
+            btn.innerHTML = "Kirim Semua ke Sheet";
+        }
+    }
+
+    // Jalankan load dropdown saat web dibuka
+    loadDropdowns();
+</script>
+
+</body>
+</html>
