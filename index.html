@@ -149,16 +149,21 @@
         fillSelect('category', targetCats);
     }
 
-    function fillSelect(id, items) {
-        const select = document.getElementById(id);
-        select.innerHTML = '';
-        items.filter(i => i).forEach(item => {
+function fillSelect(id, items) {
+    const select = document.getElementById(id);
+    select.innerHTML = '';
+    
+    items.forEach(item => {
+        // Cek apakah item tidak null, tidak undefined, dan bukan string kosong
+        // Angka 0 tetap akan lolos pengecekan ini
+        if (item !== null && item !== undefined && item !== "") {
             let opt = document.createElement('option');
-            opt.value = item; opt.innerText = item;
+            opt.value = item; 
+            opt.innerText = item;
             select.appendChild(opt);
-        });
-    }
-
+        }
+    });
+}
     function tambahAntrean() {
         const amt = document.getElementById('amountReal').value;
         const desc = document.getElementById('desc').value;
