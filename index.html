@@ -3,20 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laporan Money Input</title>
+    <title>Laporan Money - Input & Visualisasi</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { background-color: #f0f2f5; padding: 15px; font-family: -apple-system, sans-serif; }
         .card { border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: none; }
         .table-container { margin-top: 15px; background: white; border-radius: 12px; padding: 15px; }
         .form-label { font-size: 0.85rem; color: #555; margin-bottom: 4px; }
         
-        #desc::placeholder {
-            color: #adb5bd; 
-            font-size: 0.8rem;
-            font-style: italic;
-        }
+        /* Utility */
+        #reportView { display: none; }
+        #chartWrapper { position: relative; min-height: 200px; width: 100%; margin-top: 20px; }
+        .loading-overlay { display: none; font-style: italic; color: #666; }
 
+        #desc::placeholder { color: #adb5bd; font-size: 0.8rem; font-style: italic; }
         .btn-check:checked + .btn-outline-success { background-color: #198754; color: white; }
         .btn-check:checked + .btn-outline-danger { background-color: #dc3545; color: white; }
         .btn-check:checked + .btn-outline-primary { background-color: #0d6efd; color: white; }
@@ -25,86 +26,126 @@
 <body>
 
 <div class="container" style="max-width: 500px;">
-    <div class="card p-4">
-        <h5 class="mb-4 text-center fw-bold">Input Transaksi</h5>
-        
-        <div class="mb-3">
-            <label class="form-label fw-bold">Tanggal</label>
-            <input type="date" id="date" class="form-control">
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label fw-bold d-block">Tipe Transaksi</label>
-            <div class="btn-group w-100" role="group">
-                <input type="radio" class="btn-check" name="type" id="income" value="INCOME" onchange="updateCategoryDropdown()">
-                <label class="btn btn-outline-success" for="income">INCOME</label>
-
-                <input type="radio" class="btn-check" name="type" id="expense" value="EXPENSE" onchange="updateCategoryDropdown()" checked>
-                <label class="btn btn-outline-danger" for="expense">EXPENSE</label>
-
-                <input type="radio" class="btn-check" name="type" id="transfer" value="TRANSFER" onchange="updateCategoryDropdown()">
-                <label class="btn btn-outline-primary" for="transfer">TRANSFER</label>
+    
+    <div id="inputView">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="m-0 fw-bold">Input Transaksi</h5>
+                <button class="btn btn-sm btn-outline-secondary" onclick="showReport()">📊 Laporan</button>
             </div>
-        </div>
-
-        <div class="row">
-            <div class="col-6 mb-3">
-                <label class="form-label fw-bold">Pocket</label>
-                <select id="pocket" class="form-select"></select>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold">Tanggal</label>
+                <input type="date" id="date" class="form-control">
             </div>
-            <div class="col-6 mb-3">
-                <label id="labelCategory" class="form-label fw-bold">Category</label>
-                <select id="category" class="form-select"></select>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold d-block">Tipe Transaksi</label>
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="type" id="income" value="INCOME" onchange="updateCategoryDropdown()">
+                    <label class="btn btn-outline-success" for="income">INCOME</label>
+
+                    <input type="radio" class="btn-check" name="type" id="expense" value="EXPENSE" onchange="updateCategoryDropdown()" checked>
+                    <label class="btn btn-outline-danger" for="expense">EXPENSE</label>
+
+                    <input type="radio" class="btn-check" name="type" id="transfer" value="TRANSFER" onchange="updateCategoryDropdown()">
+                    <label class="btn btn-outline-primary" for="transfer">TRANSFER</label>
+                </div>
             </div>
+
+            <div class="row">
+                <div class="col-6 mb-3">
+                    <label class="form-label fw-bold">Pocket</label>
+                    <select id="pocket" class="form-select"></select>
+                </div>
+                <div class="col-6 mb-3">
+                    <label id="labelCategory" class="form-label fw-bold">Category</label>
+                    <select id="category" class="form-select"></select>
+                </div>
+            </div>
+
+            <div id="adminContainer" class="mb-3" style="display: none;">
+                <label class="form-label fw-bold">Admin Fee (Rp)</label>
+                <select id="admin" class="form-select"></select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Description</label>
+                <input type="text" id="desc" class="form-control" placeholder="Keterangan transaksi...">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Amount (Rp)</label>
+                <input type="text" id="amountDisplay" class="form-control form-control-lg text-end fw-bold" placeholder="0" oninput="formatRupiah(this)">
+                <input type="hidden" id="amountReal">
+            </div>
+
+            <button onclick="tambahAntrean()" class="btn btn-primary w-100 py-2 fw-bold">Tambah ke Antrean</button>
         </div>
 
-        <div id="adminContainer" class="mb-3" style="display: none;">
-            <label class="form-label fw-bold">Admin Fee (Rp)</label>
-            <select id="admin" class="form-select"></select>
+        <div class="table-container shadow-sm">
+            <h6 class="fw-bold mb-3">Daftar Antrean:</h6>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle" id="tabelAntrean">
+                    <thead>
+                        <tr class="table-light">
+                            <th>Item</th>
+                            <th class="text-end">Amount</th>
+                            <th class="text-center">#</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <button id="btnKirim" onclick="kirimKeSheet()" class="btn btn-success w-100 mt-2 py-2 fw-bold" disabled>Kirim Semua ke Sheet</button>
         </div>
-
-        <div class="mb-3">
-            <label class="form-label fw-bold">Description</label>
-            <input type="text" id="desc" class="form-control" 
-                   placeholder="I shall dwell forever in the house and in the presence of the LORD">
-        </div>
-
-        <div class="mb-3">
-            <label class="form-label fw-bold">Amount (Rp)</label>
-            <input type="text" id="amountDisplay" class="form-control form-control-lg text-end fw-bold" 
-                   placeholder="0" oninput="formatRupiah(this)">
-            <input type="hidden" id="amountReal">
-        </div>
-
-        <button onclick="tambahAntrean()" class="btn btn-primary w-100 py-2 fw-bold">Tambah ke Antrean</button>
     </div>
 
-    <div class="table-container shadow-sm">
-        <h6 class="fw-bold mb-3">Daftar Antrean:</h6>
-        <div class="table-responsive">
-            <table class="table table-sm align-middle" id="tabelAntrean">
-                <thead>
-                    <tr class="table-light">
-                        <th>Item</th>
-                        <th class="text-end">Amount</th>
-                        <th class="text-center">#</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+    <div id="reportView">
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="m-0 fw-bold">Visualisasi Saldo</h5>
+                <button class="btn btn-sm btn-outline-secondary" onclick="showInput()">⬅ Kembali</button>
+            </div>
+            
+            <p class="small text-muted text-center">Biru: Income | Orange: Spending (Heatmap)</p>
+            <div id="loading" class="loading-overlay text-center">Menarik data dari langit...</div>
+            
+            <div id="chartWrapper">
+                <canvas id="myChart"></canvas>
+            </div>
+
+            <div class="mt-4">
+                <button class="btn btn-light btn-sm w-100" onclick="fetchAndRenderChart()">🔄 Refresh Data</button>
+            </div>
         </div>
-        <button id="btnKirim" onclick="kirimKeSheet()" class="btn btn-success w-100 mt-2 py-2 fw-bold" disabled>Kirim Semua ke Sheet</button>
     </div>
+
 </div>
 
 <script>
+    // URL Apps Script Anda
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyamcjfrG9kKFYwmM_8p2TMOORO_ATqJRZt6G7R_POrCQwWjKjMOJyays7J5b8zNYsdmQ/exec'; 
     
     let antreanData = [];
     let masterData = { pockets: [], incomeCats: [], outcomeCats: [], admins: [] };
+    let financialChart = null;
 
     document.getElementById('date').valueAsDate = new Date();
 
+    // --- LOGIKA NAVIGASI ---
+    function showReport() {
+        document.getElementById('inputView').style.display = 'none';
+        document.getElementById('reportView').style.display = 'block';
+        fetchAndRenderChart();
+    }
+
+    function showInput() {
+        document.getElementById('reportView').style.display = 'none';
+        document.getElementById('inputView').style.display = 'block';
+    }
+
+    // --- LOGIKA INPUT ---
     function formatRupiah(input) {
         let val = input.value.replace(/\D/g, "");
         if (val === "") { input.value = ""; document.getElementById('amountReal').value = 0; return; }
@@ -117,11 +158,10 @@
             const response = await fetch(SCRIPT_URL);
             const data = await response.json();
             masterData = data;
-            
             fillSelect('pocket', masterData.pockets);
             fillSelect('admin', masterData.admins);
             updateCategoryDropdown();
-        } catch (e) { alert("Gagal mengambil data dropdown!"); }
+        } catch (e) { console.error("Gagal load dropdown"); }
     }
 
     function updateCategoryDropdown() {
@@ -134,7 +174,7 @@
             targetCats = masterData.incomeCats;
             adminCont.style.display = 'none';
             labelCat.innerText = "Category";
-        } else if (type === 'EXPENSE') { // Diubah dari SPENDING
+        } else if (type === 'EXPENSE') {
             targetCats = masterData.outcomeCats;
             adminCont.style.display = 'none';
             labelCat.innerText = "Category";
@@ -150,10 +190,9 @@
         const select = document.getElementById(id);
         select.innerHTML = '';
         items.forEach(item => {
-            if (item !== null && item !== undefined && item !== "") {
+            if (item) {
                 let opt = document.createElement('option');
-                opt.value = item; 
-                opt.innerText = item;
+                opt.value = opt.innerText = item;
                 select.appendChild(opt);
             }
         });
@@ -163,10 +202,9 @@
         const amt = document.getElementById('amountReal').value;
         const desc = document.getElementById('desc').value;
         const type = document.querySelector('input[name="type"]:checked').value;
-        
-        if(!amt || amt == "0" || !desc) return alert("Lengkapi data dulu!");
+        if(!amt || amt == "0" || !desc) return alert("Lengkapi data!");
 
-        const data = {
+        antreanData.push({
             date: document.getElementById('date').value,
             type: type,
             pocket: document.getElementById('pocket').value,
@@ -174,11 +212,8 @@
             desc: desc,
             amount: parseInt(amt),
             admin: (type === 'TRANSFER') ? parseInt(document.getElementById('admin').value || 0) : 0
-        };
-
-        antreanData.push(data);
+        });
         renderTabel();
-        
         document.getElementById('desc').value = '';
         document.getElementById('amountDisplay').value = '';
         document.getElementById('amountReal').value = '';
@@ -188,38 +223,66 @@
         const tbody = document.querySelector('#tabelAntrean tbody');
         const btnKirim = document.getElementById('btnKirim');
         tbody.innerHTML = '';
-        
-        antreanData.forEach((d, index) => {
-            let color = 'text-danger';
-            if(d.type === 'INCOME') color = 'text-success';
-            if(d.type === 'TRANSFER') color = 'text-primary';
-            // Logic warna EXPENSE otomatis ikut default (text-danger)
-
-            const row = `<tr>
+        antreanData.forEach((d, i) => {
+            let color = d.type === 'INCOME' ? 'text-success' : (d.type === 'TRANSFER' ? 'text-primary' : 'text-danger');
+            tbody.innerHTML += `<tr>
                 <td><small><strong class="${color}">${d.type}</strong><br>${d.desc}</small></td>
                 <td class="text-end">${new Intl.NumberFormat('id-ID').format(d.amount)}</td>
-                <td class="text-center"><button class='btn btn-sm btn-link text-danger' onclick='hapusItem(${index})'>✕</button></td>
+                <td class="text-center"><button class='btn btn-sm btn-link text-danger' onclick='hapusItem(${i})'>✕</button></td>
             </tr>`;
-            tbody.innerHTML += row;
         });
         btnKirim.disabled = antreanData.length === 0;
     }
 
-    function hapusItem(index) {
-        antreanData.splice(index, 1);
-        renderTabel();
-    }
+    function hapusItem(index) { antreanData.splice(index, 1); renderTabel(); }
 
     async function kirimKeSheet() {
         const btn = document.getElementById('btnKirim');
         btn.disabled = true; btn.innerHTML = "Proses...";
-
         try {
             await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(antreanData) });
-            alert("Mantap! Semua data sudah masuk.");
+            alert("Berhasil dikirim!");
             antreanData = []; renderTabel();
-        } catch (e) { alert("Gagal kirim data!"); } 
+        } catch (e) { alert("Gagal kirim!"); } 
         finally { btn.innerHTML = "Kirim Semua ke Sheet"; }
+    }
+
+    // --- LOGIKA CHART (VISUALISASI) ---
+    async function fetchAndRenderChart() {
+        const loader = document.getElementById('loading');
+        loader.style.display = 'block';
+        
+        try {
+            // Memanggil doGet dengan action=draw sesuai update Apps Script sebelumnya
+            const response = await fetch(SCRIPT_URL + '?action=draw');
+            const chartData = await response.json();
+            
+            if (financialChart) financialChart.destroy();
+            
+            const ctx = document.getElementById('myChart').getContext('2d');
+            financialChart = new Chart(ctx, {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, grid: { display: false }, ticks: { display: false } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.dataset.label}: ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Math.abs(ctx.parsed.x))}`
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (e) { console.error("Gagal load chart", e); }
+        finally { loader.style.display = 'none'; }
     }
 
     loadData();
