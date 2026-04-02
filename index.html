@@ -11,14 +11,12 @@
         .table-container { margin-top: 15px; background: white; border-radius: 12px; padding: 15px; }
         .form-label { font-size: 0.85rem; color: #555; margin-bottom: 4px; }
         
-        /* Style Placeholder khusus untuk Deskripsi */
         #desc::placeholder {
             color: #adb5bd; 
             font-size: 0.8rem;
             font-style: italic;
         }
 
-        /* Tombol Radio Custom Colors */
         .btn-check:checked + .btn-outline-success { background-color: #198754; color: white; }
         .btn-check:checked + .btn-outline-danger { background-color: #dc3545; color: white; }
         .btn-check:checked + .btn-outline-primary { background-color: #0d6efd; color: white; }
@@ -41,8 +39,8 @@
                 <input type="radio" class="btn-check" name="type" id="income" value="INCOME" onchange="updateCategoryDropdown()">
                 <label class="btn btn-outline-success" for="income">INCOME</label>
 
-                <input type="radio" class="btn-check" name="type" id="spending" value="SPENDING" onchange="updateCategoryDropdown()" checked>
-                <label class="btn btn-outline-danger" for="spending">SPENDING</label>
+                <input type="radio" class="btn-check" name="type" id="expense" value="EXPENSE" onchange="updateCategoryDropdown()" checked>
+                <label class="btn btn-outline-danger" for="expense">EXPENSE</label>
 
                 <input type="radio" class="btn-check" name="type" id="transfer" value="TRANSFER" onchange="updateCategoryDropdown()">
                 <label class="btn btn-outline-primary" for="transfer">TRANSFER</label>
@@ -100,7 +98,6 @@
 </div>
 
 <script>
-    // GANTI DENGAN URL WEB APP ANDA
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyamcjfrG9kKFYwmM_8p2TMOORO_ATqJRZt6G7R_POrCQwWjKjMOJyays7J5b8zNYsdmQ/exec'; 
     
     let antreanData = [];
@@ -137,33 +134,31 @@
             targetCats = masterData.incomeCats;
             adminCont.style.display = 'none';
             labelCat.innerText = "Category";
-        } else if (type === 'SPENDING') {
+        } else if (type === 'EXPENSE') { // Diubah dari SPENDING
             targetCats = masterData.outcomeCats;
             adminCont.style.display = 'none';
             labelCat.innerText = "Category";
         } else if (type === 'TRANSFER') {
-            targetCats = masterData.pockets; // Tujuan transfer adalah pocket lain
+            targetCats = masterData.pockets;
             adminCont.style.display = 'block';
             labelCat.innerText = "Target Pocket";
         }
         fillSelect('category', targetCats);
     }
 
-function fillSelect(id, items) {
-    const select = document.getElementById(id);
-    select.innerHTML = '';
-    
-    items.forEach(item => {
-        // Cek apakah item tidak null, tidak undefined, dan bukan string kosong
-        // Angka 0 tetap akan lolos pengecekan ini
-        if (item !== null && item !== undefined && item !== "") {
-            let opt = document.createElement('option');
-            opt.value = item; 
-            opt.innerText = item;
-            select.appendChild(opt);
-        }
-    });
-}
+    function fillSelect(id, items) {
+        const select = document.getElementById(id);
+        select.innerHTML = '';
+        items.forEach(item => {
+            if (item !== null && item !== undefined && item !== "") {
+                let opt = document.createElement('option');
+                opt.value = item; 
+                opt.innerText = item;
+                select.appendChild(opt);
+            }
+        });
+    }
+
     function tambahAntrean() {
         const amt = document.getElementById('amountReal').value;
         const desc = document.getElementById('desc').value;
@@ -184,7 +179,6 @@ function fillSelect(id, items) {
         antreanData.push(data);
         renderTabel();
         
-        // Reset Deskripsi & Nominal
         document.getElementById('desc').value = '';
         document.getElementById('amountDisplay').value = '';
         document.getElementById('amountReal').value = '';
@@ -199,6 +193,7 @@ function fillSelect(id, items) {
             let color = 'text-danger';
             if(d.type === 'INCOME') color = 'text-success';
             if(d.type === 'TRANSFER') color = 'text-primary';
+            // Logic warna EXPENSE otomatis ikut default (text-danger)
 
             const row = `<tr>
                 <td><small><strong class="${color}">${d.type}</strong><br>${d.desc}</small></td>
